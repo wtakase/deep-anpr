@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+# -*- coding: utf-8 -*-
 #
 # Copyright (c) 2016 Matthew Earl
 # 
@@ -130,7 +131,7 @@ def get_loss(y, y_):
                                                      [-1, len(common.CHARS)]),
                                           tf.reshape(y_[:, 1:],
                                                      [-1, len(common.CHARS)]))
-    digits_loss = tf.reshape(digits_loss, [-1, 7])
+    digits_loss = tf.reshape(digits_loss, [-1, 11])
     digits_loss = tf.reduce_sum(digits_loss, 1)
     digits_loss *= (y_[:, 0] != 0)
     digits_loss = tf.reduce_sum(digits_loss)
@@ -138,7 +139,7 @@ def get_loss(y, y_):
     # Calculate the loss from presence indicator being wrong.
     presence_loss = tf.nn.sigmoid_cross_entropy_with_logits(
                                                           y[:, :1], y_[:, :1])
-    presence_loss = 7 * tf.reduce_sum(presence_loss)
+    presence_loss = 11 * tf.reduce_sum(presence_loss)
 
     return digits_loss, presence_loss, digits_loss + presence_loss
 
@@ -169,13 +170,13 @@ def train(learn_rate, report_steps, batch_size, initial_weights=None):
     """
     x, y, params = model.get_training_model()
 
-    y_ = tf.placeholder(tf.float32, [None, 7 * len(common.CHARS) + 1])
+    y_ = tf.placeholder(tf.float32, [None, 11 * len(common.CHARS) + 1])
 
     digits_loss, presence_loss, loss = get_loss(y, y_)
     train_step = tf.train.AdamOptimizer(learn_rate).minimize(loss)
 
-    best = tf.argmax(tf.reshape(y[:, 1:], [-1, 7, len(common.CHARS)]), 2)
-    correct = tf.argmax(tf.reshape(y_[:, 1:], [-1, 7, len(common.CHARS)]), 2)
+    best = tf.argmax(tf.reshape(y[:, 1:], [-1, 11, len(common.CHARS)]), 2)
+    correct = tf.argmax(tf.reshape(y_[:, 1:], [-1, 11, len(common.CHARS)]), 2)
 
     if initial_weights is not None:
         assert len(params) == len(initial_weights)

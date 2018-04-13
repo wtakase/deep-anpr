@@ -25,8 +25,15 @@ Definitions that don't fit elsewhere.
 
 __all__ = (
     'DIGITS',
-    'LETTERS',
+    'REGIONS',
+    'HIRAGANAS'
+    'HYPHEN',
+    'DOT',
     'CHARS',
+    'TRM_FONT',
+    'FZ_FONT',
+    'REGION_NUM'
+    'REGIONS_SLICE',
     'sigmoid',
     'softmax',
 )
@@ -34,9 +41,32 @@ __all__ = (
 import numpy
 
 
+# TrmFontJB.ttf
+TRM_FONT = "TrmFontJB.ttf"
 DIGITS = "0123456789"
-LETTERS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
-CHARS = LETTERS + DIGITS
+HYPHEN = "-"
+DOT = "."
+TRM_CHARS = DIGITS + HYPHEN + DOT
+
+# FZcarnumberJA-OTF_ver10.otf
+FZ_FONT = "FZcarnumberJA-OTF_ver10.otf"
+REGIONS = u"北九州金沢高知山口富士山徳島富山奈良ツクバ"
+HIRAGANAS = u"えさすそたちつてとなにぬねのはひふほまみむめもやゆよらりるれろわ"
+FZ_CHARS = REGIONS + HIRAGANAS
+REGION_NUM = 9
+REGIONS_SLICE = [
+    {"start": 0, "end": 3},
+    {"start": 3, "end": 5},
+    {"start": 5, "end": 7},
+    {"start": 7, "end": 9},
+    {"start": 9, "end": 12},
+    {"start": 12, "end": 14},
+    {"start": 14, "end": 16},
+    {"start": 16, "end": 18},
+    {"start": 18, "end": 21}
+]
+
+CHARS = TRM_CHARS + FZ_CHARS
 
 def softmax(a):
     exps = numpy.exp(a.astype(numpy.float64))

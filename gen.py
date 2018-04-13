@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+# -*- coding: utf-8 -*-
 #
 # Copyright (c) 2016 Matthew Earl
 # 
@@ -49,21 +50,22 @@ from PIL import ImageFont
 import common
 
 FONT_DIR = "./fonts"
-FONT_HEIGHT = 32  # Pixel size to which the chars are resized
+SMALL_FONT_HEIGHT = 40
+FONT_HEIGHT = 80  # Pixel size to which the chars are resized
+PLATE_HEIGHT = 165
+PLATE_WIDTH = 330
 
-OUTPUT_SHAPE = (64, 128)
-
-CHARS = common.CHARS + " "
+OUTPUT_SHAPE = (128, 256)
 
 
-def make_char_ims(font_path, output_height):
+def make_char_ims(font_path, chars, output_height):
+    chars += " "
     font_size = output_height * 4
 
     font = ImageFont.truetype(font_path, font_size)
 
-    height = max(font.getsize(c)[1] for c in CHARS)
-
-    for c in CHARS:
+    height = max(font.getsize(c)[1] for c in chars)
+    for c in chars:
         width = font.getsize(c)[0]
         im = Image.new("RGBA", (width, height), (0, 0, 0))
 
@@ -157,15 +159,53 @@ def make_affine_transform(from_shape, to_shape,
     return M, out_of_bounds
 
 
-def generate_code():
-    return "{}{}{}{} {}{}{}".format(
-        random.choice(common.LETTERS),
-        random.choice(common.LETTERS),
+def generate_region():
+    index = random.randrange(common.REGION_NUM)
+    start = common.REGIONS_SLICE[index]["start"]
+    end = common.REGIONS_SLICE[index]["end"]
+    return common.REGIONS[start:end]
+
+
+def generate_class_number():
+    return "{}{}{}".format(
         random.choice(common.DIGITS),
         random.choice(common.DIGITS),
-        random.choice(common.LETTERS),
-        random.choice(common.LETTERS),
-        random.choice(common.LETTERS))
+        random.choice(common.DIGITS))
+
+
+def generate_hiragana():
+    return "{}".format(
+        random.choice(common.HIRAGANAS))
+
+
+def generate_number_code():
+    #digit_num = random.randrange(1, 20)
+    digit_num = random.randrange(4, 20)
+    if digit_num == 1:
+        return "{}{} {}{}".format(
+            random.choice(common.DOT),
+            random.choice(common.DOT),
+            random.choice(common.DOT),
+            random.choice(common.DIGITS))
+    elif digit_num == 2:
+        return "{}{} {}{}".format(
+            random.choice(common.DOT),
+            random.choice(common.DOT),
+            random.choice(common.DIGITS),
+            random.choice(common.DIGITS))
+    elif digit_num == 3:
+        return "{}{} {}{}".format(
+            random.choice(common.DOT),
+            random.choice(common.DIGITS),
+            random.choice(common.DIGITS),
+            random.choice(common.DIGITS))
+    else:
+        return "{}{}{}{}{}".format(
+            random.choice(common.DIGITS),
+            random.choice(common.DIGITS),
+            random.choice(common.HYPHEN),
+            random.choice(common.DIGITS),
+            random.choice(common.DIGITS))
 
 
 def rounded_rect(shape, radius):
@@ -183,42 +223,65 @@ def rounded_rect(shape, radius):
     return out
 
 
-def generate_plate(font_height, char_ims):
-    h_padding = random.uniform(0.2, 0.4) * font_height
-    v_padding = random.uniform(0.1, 0.3) * font_height
-    spacing = font_height * random.uniform(-0.05, 0.05)
+def generate_plate(font_height, char_ims, plate_height, plate_width):
+    h_padding = 20 * random.uniform(0.95, 1.05)
+    v_padding = 15 * random.uniform(0.95, 1.05)
+    region_spacing = 6 * random.uniform(0.95, 1.05)
+    class_number_spacing = 3 * random.uniform(0.95, 1.05)
+    lower_spacing = 9 * random.uniform(0.95, 1.05)
     radius = 1 + int(font_height * 0.1 * random.random())
 
-    code = generate_code()
-    text_width = sum(char_ims[c].shape[1] for c in code)
-    text_width += (len(code) - 1) * spacing
+    region = generate_region()
+    class_number = generate_class_number()
+    hiragana = generate_hiragana()
+    number_code = generate_number_code()
 
-    out_shape = (int(font_height + v_padding * 2),
-                 int(text_width + h_padding * 2))
+    code = region + class_number + hiragana + number_code
+
+    out_shape = (int(135 + v_padding * 2),
+                 int(315 + h_padding * 2))
 
     text_color, plate_color = pick_colors()
     
     text_mask = numpy.zeros(out_shape)
     
-    x = h_padding
-    y = v_padding 
-    for c in code:
-        char_im = char_ims[c]
+    x = 85 * random.uniform(0.95, 1.05)
+    y = v_padding
+    for r in region:
+        char_im = char_ims["region,%s" % common.FZ_FONT][r]
         ix, iy = int(x), int(y)
         text_mask[iy:iy + char_im.shape[0], ix:ix + char_im.shape[1]] = char_im
-        x += char_im.shape[1] + spacing
+        x += char_im.shape[1] + region_spacing
+    for c in class_number:
+        char_im = char_ims["class_number,%s" % common.TRM_FONT][c]
+        ix, iy = int(x), int(y)
+        text_mask[iy:iy + char_im.shape[0], ix:ix + char_im.shape[1]] = char_im
+        x += char_im.shape[1] + class_number_spacing
+    x = h_padding
+    y += 75
+    for h in hiragana:
+        char_im = char_ims["hiragana,%s" % common.FZ_FONT][h]
+        ix, iy = int(x), int(y)
+        text_mask[iy:iy + char_im.shape[0], ix:ix + char_im.shape[1]] = char_im
+        x += char_im.shape[1] + lower_spacing
+    y -= 20
+    for n in number_code:
+        char_im = char_ims["number_code,%s" % common.TRM_FONT][n]
+        ix, iy = int(x), int(y)
+        text_mask[iy:iy + char_im.shape[0], ix:ix + char_im.shape[1]] = char_im
+        x += char_im.shape[1] + lower_spacing
 
     plate = (numpy.ones(out_shape) * plate_color * (1. - text_mask) +
              numpy.ones(out_shape) * text_color * text_mask)
 
-    return plate, rounded_rect(out_shape, radius), code.replace(" ", "")
+    return plate, rounded_rect(out_shape, radius), code
 
 
 def generate_bg(num_bg_images):
     found = False
     while not found:
         fname = "bgs/{:08d}.jpg".format(random.randint(0, num_bg_images - 1))
-        bg = cv2.imread(fname, cv2.CV_LOAD_IMAGE_GRAYSCALE) / 255.
+        bg = cv2.imread(fname, cv2.IMREAD_GRAYSCALE) / 255.
         if (bg.shape[1] >= OUTPUT_SHAPE[1] and
             bg.shape[0] >= OUTPUT_SHAPE[0]):
             found = True
@@ -233,7 +296,8 @@ def generate_bg(num_bg_images):
 def generate_im(char_ims, num_bg_images):
     bg = generate_bg(num_bg_images)
 
-    plate, plate_mask, code = generate_plate(FONT_HEIGHT, char_ims)
+    plate, plate_mask, code = generate_plate(FONT_HEIGHT, char_ims,
+                                             PLATE_HEIGHT, PLATE_WIDTH)
     
     M, out_of_bounds = make_affine_transform(
                             from_shape=plate.shape,
@@ -258,11 +322,27 @@ def generate_im(char_ims, num_bg_images):
 
 def load_fonts(folder_path):
     font_char_ims = {}
-    fonts = [f for f in os.listdir(folder_path) if f.endswith('.ttf')]
-    for font in fonts:
-        font_char_ims[font] = dict(make_char_ims(os.path.join(folder_path,
-                                                              font),
-                                                 FONT_HEIGHT))
+    fonts = [common.TRM_FONT, common.FZ_FONT]
+    font_char_ims["region,%s" % common.FZ_FONT] = dict(
+        make_char_ims(os.path.join(folder_path,
+                                   common.FZ_FONT),
+                      common.REGIONS,
+                      SMALL_FONT_HEIGHT))
+    font_char_ims["class_number,%s" % common.TRM_FONT] = dict(
+        make_char_ims(os.path.join(folder_path,
+                                   common.TRM_FONT),
+                      common.DIGITS,
+                      SMALL_FONT_HEIGHT))
+    font_char_ims["hiragana,%s" % common.FZ_FONT] = dict(
+        make_char_ims(os.path.join(folder_path,
+                                   common.FZ_FONT),
+                      common.HIRAGANAS,
+                      SMALL_FONT_HEIGHT))
+    font_char_ims["number_code,%s" % common.TRM_FONT] = dict(
+        make_char_ims(os.path.join(folder_path,
+                                   common.TRM_FONT),
+                      common.TRM_CHARS,
+                      FONT_HEIGHT))
     return fonts, font_char_ims
 
 
@@ -278,15 +358,16 @@ def generate_ims():
     fonts, font_char_ims = load_fonts(FONT_DIR)
     num_bg_images = len(os.listdir("bgs"))
     while True:
-        yield generate_im(font_char_ims[random.choice(fonts)], num_bg_images)
+        yield generate_im(font_char_ims, num_bg_images)
 
 
 if __name__ == "__main__":
-    os.mkdir("test")
+    if not os.path.exists("test"):
+        os.mkdir("test")
     im_gen = itertools.islice(generate_ims(), int(sys.argv[1]))
     for img_idx, (im, c, p) in enumerate(im_gen):
         fname = "test/{:08d}_{}_{}.png".format(img_idx, c,
                                                "1" if p else "0")
-        print fname
+        print(fname)
         cv2.imwrite(fname, im * 255.)
 

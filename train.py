@@ -37,6 +37,7 @@ import functools
 import glob
 import itertools
 import multiprocessing
+import os
 import random
 import sys
 import time
@@ -48,6 +49,10 @@ import tensorflow as tf
 import common
 import gen
 import model
+
+
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
+os.environ['CUDA_VISIBLE_DEVICES'] = '2'
 
 
 def code_to_vec(p, code):
@@ -64,8 +69,8 @@ def code_to_vec(p, code):
 def read_data(img_glob):
     for fname in sorted(glob.glob(img_glob)):
         im = cv2.imread(fname)[:, :, 0].astype(numpy.float32) / 255.
-        code = fname.split("/")[1][9:16]
-        p = fname.split("/")[1][17] == '1'
+        code = fname.split("/")[1][9:20]
+        p = fname.split("/")[1][21] == '1'
         yield im, code_to_vec(p, code)
 
 
@@ -127,9 +132,9 @@ def get_loss(y, y_):
     # Calculate the loss from digits being incorrect.  Don't count loss from
     # digits that are in non-present plates.
     digits_loss = tf.nn.softmax_cross_entropy_with_logits(
-                                          tf.reshape(y[:, 1:],
+                                          logits=tf.reshape(y[:, 1:],
                                                      [-1, len(common.CHARS)]),
-                                          tf.reshape(y_[:, 1:],
+                                          labels=tf.reshape(y_[:, 1:],
                                                      [-1, len(common.CHARS)]))
     digits_loss = tf.reshape(digits_loss, [-1, 11])
     digits_loss = tf.reduce_sum(digits_loss, 1)
@@ -138,13 +143,13 @@ def get_loss(y, y_):
 
     # Calculate the loss from presence indicator being wrong.
     presence_loss = tf.nn.sigmoid_cross_entropy_with_logits(
-                                                          y[:, :1], y_[:, :1])
+        logits=y[:, :1], labels=y_[:, :1])
     presence_loss = 11 * tf.reduce_sum(presence_loss)
 
     return digits_loss, presence_loss, digits_loss + presence_loss
 
 
-def train(learn_rate, report_steps, batch_size, initial_weights=None):
+def train(learn_rate, report_steps, batch_size, initial_weights=None, max_steps=0):
     """
     Train the network.
 
@@ -178,16 +183,22 @@ def train(learn_rate, report_steps, batch_size, initial_weights=None):
     best = tf.argmax(tf.reshape(y[:, 1:], [-1, 11, len(common.CHARS)]), 2)
     correct = tf.argmax(tf.reshape(y_[:, 1:], [-1, 11, len(common.CHARS)]), 2)
 
+    test_xs_all, test_ys_all = unzip(list(read_data("test/*.png")))
+
     if initial_weights is not None:
         assert len(params) == len(initial_weights)
         assign_ops = [w.assign(v) for w, v in zip(params, initial_weights)]
 
-    init = tf.initialize_all_variables()
+    init = tf.global_variables_initializer()
 
     def vec_to_plate(v):
         return "".join(common.CHARS[i] for i in v)
 
-    def do_report():
+    def do_report(batch_time):
+        batch_mask = numpy.random.choice(test_xs_all.shape[0], batch_size)
+        test_xs = test_xs_all[batch_mask]
+        test_ys = test_ys_all[batch_mask]
+
         r = sess.run([best,
                       correct,
                       tf.greater(y[:, 0], 0),
@@ -201,28 +212,30 @@ def train(learn_rate, report_steps, batch_size, initial_weights=None):
                             numpy.all(r[0] == r[1], axis=1),
                             numpy.logical_and(r[2] < 0.5,
                                               r[3] < 0.5)))
+        """
         r_short = (r[0][:190], r[1][:190], r[2][:190], r[3][:190])
         for b, c, pb, pc in zip(*r_short):
-            print "{} {} <-> {} {}".format(vec_to_plate(c), pc,
-                                           vec_to_plate(b), float(pb))
+            print("{} {} <-> {} {}".format(vec_to_plate(c), pc,
+                                           vec_to_plate(b), float(pb)))
+        """
         num_p_correct = numpy.sum(r[2] == r[3])
 
-        print ("B{:3d} {:2.02f}% {:02.02f}% loss: {} "
-               "(digits: {}, presence: {}) |{}|").format(
+        print("step: {:d}, num_images: {:d}, number_plate_acc: {:2.02f}% presence_acc: {:02.02f}%, loss: {}, time: {:02.02f}".format(
             batch_idx,
+            batch_idx * batch_size,
             100. * num_correct / (len(r[0])),
             100. * num_p_correct / len(r[2]),
             r[6],
-            r[4],
-            r[5],
-            "".join("X "[numpy.array_equal(b, c) or (not pb and not pc)]
-                                           for b, c, pb, pc in zip(*r_short)))
+            batch_time))
 
-    def do_batch():
+    def do_batch(last_time_batch):
         sess.run(train_step,
                  feed_dict={x: batch_xs, y_: batch_ys})
-        if batch_idx % report_steps == 0:
-            do_report()
+        if batch_idx != 0 and batch_idx % report_steps == 0:
+            batch_time = time.time() - last_time_batch
+            do_report(batch_time)
+            last_time_batch = time.time()
+        return last_time_batch
 
     gpu_options = tf.GPUOptions(per_process_gpu_memory_fraction=0.95)
     with tf.Session(config=tf.ConfigProto(gpu_options=gpu_options)) as sess:
@@ -230,23 +243,25 @@ def train(learn_rate, report_steps, batch_size, initial_weights=None):
         if initial_weights is not None:
             sess.run(assign_ops)
 
-        test_xs, test_ys = unzip(list(read_data("test/*.png"))[:50])
-
+        #test_xs, test_ys = unzip(list(read_data("test/*.png"))[:batch_size])
         try:
             last_batch_idx = 0
             last_batch_time = time.time()
             batch_iter = enumerate(read_batches(batch_size))
             for batch_idx, (batch_xs, batch_ys) in batch_iter:
-                do_batch()
+                last_batch_time = do_batch(last_batch_time)
+                """
                 if batch_idx % report_steps == 0:
                     batch_time = time.time()
                     if last_batch_idx != batch_idx:
-                        print "time for 60 batches {}".format(
-                            60 * (last_batch_time - batch_time) /
-                                            (last_batch_idx - batch_idx))
+                        print("time for {} batches: {}".format(
+                            report_steps,
+                            batch_time - last_batch_time))
                         last_batch_idx = batch_idx
                         last_batch_time = batch_time
-
+                """
+                if max_steps != 0 and batch_idx >= max_steps:
+                    raise KeyboardInterrupt
         except KeyboardInterrupt:
             last_weights = [p.eval() for p in params]
             numpy.savez("weights.npz", *last_weights)
@@ -261,8 +276,11 @@ if __name__ == "__main__":
     else:
         initial_weights = None
 
+    start_time = time.time()
     train(learn_rate=0.001,
-          report_steps=20,
-          batch_size=50,
-          initial_weights=initial_weights)
-
+          report_steps=10,
+          batch_size=100,
+          initial_weights=initial_weights,
+          max_steps=20000)
+    end_time = time.time()
+    print("Elapsed time: %.2f" % (end_time - start_time))

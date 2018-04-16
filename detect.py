@@ -40,6 +40,7 @@ __all__ = (
 import collections
 import itertools
 import math
+import os
 import sys
 
 import cv2
@@ -48,6 +49,14 @@ import tensorflow as tf
 
 import common
 import model
+
+from PIL import ImageFont
+from PIL import ImageDraw
+from PIL import Image
+
+
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
+os.environ['CUDA_VISIBLE_DEVICES'] = '2'
 
 
 def make_scaled_ims(im, min_shape):
@@ -173,6 +182,7 @@ def post_process(matches):
 
 
 def letter_probs_to_code(letter_probs):
+    print("".join(common.CHARS[i] for i in numpy.argmax(letter_probs, axis=1)))
     return "".join(common.CHARS[i] for i in numpy.argmax(letter_probs, axis=1))
 
 
@@ -185,29 +195,20 @@ if __name__ == "__main__":
 
     for pt1, pt2, present_prob, letter_probs in post_process(
                                                   detect(im_gray, param_vals)):
-        pt1 = tuple(reversed(map(int, pt1)))
-        pt2 = tuple(reversed(map(int, pt2)))
+        pt1 = tuple(reversed(list(map(int, pt1))))
+        pt2 = tuple(reversed(list(map(int, pt2))))
 
         code = letter_probs_to_code(letter_probs)
 
         color = (0.0, 255.0, 0.0)
         cv2.rectangle(im, pt1, pt2, color)
 
-        cv2.putText(im,
-                    code,
-                    pt1,
-                    cv2.FONT_HERSHEY_PLAIN, 
-                    1.5,
-                    (0, 0, 0),
-                    thickness=5)
-
-        cv2.putText(im,
-                    code,
-                    pt1,
-                    cv2.FONT_HERSHEY_PLAIN, 
-                    1.5,
-                    (255, 255, 255),
-                    thickness=2)
+        font = ImageFont.truetype(
+            "/usr/share/fonts/vlgothic/VL-Gothic-Regular.ttf", 30)
+        im_pil = Image.fromarray(im)
+        draw = ImageDraw.Draw(im_pil)
+        draw.text(pt1, code, font=font, fill=(255, 0, 0, 0))
+        im = numpy.array(im_pil)
 
     cv2.imwrite(sys.argv[3], im)
 

@@ -5,3 +5,6 @@ __pycache__
 *.ttf
 *.png
 *.jpg
+*.log
+SUN397.tar.gz
+weights.npz

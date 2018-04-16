@@ -38,7 +38,7 @@ import tensorflow as tf
 import common
 
 
-WINDOW_SHAPE = (128, 256)
+WINDOW_SHAPE = (64, 128)
 
 
 # Utility functions
@@ -103,8 +103,8 @@ def convolutional_layers():
 def get_training_model():
     """
     The training model acts on a batch of 128x64 windows, and outputs a (1 +
-    11 * len(common.CHARS) vector, `v`. `v[0]` is the probability that a plate is
-    fully within the image and is at the correct scale.
+    11 * len(common.CHARS) vector, `v`. `v[0]` is the probability that a plate
+    is fully within the image and is at the correct scale.
     
     `v[1 + i * len(common.CHARS) + c]` is the probability that the `i`'th
     character is `c`.

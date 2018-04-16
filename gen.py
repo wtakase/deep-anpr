@@ -55,7 +55,7 @@ FONT_HEIGHT = 80  # Pixel size to which the chars are resized
 PLATE_HEIGHT = 165
 PLATE_WIDTH = 330
 
-OUTPUT_SHAPE = (128, 256)
+OUTPUT_SHAPE = (64, 128)
 
 
 def make_char_ims(font_path, chars, output_height):
@@ -160,7 +160,12 @@ def make_affine_transform(from_shape, to_shape,
 
 
 def generate_region():
-    index = random.randrange(common.REGION_NUM)
+    index = 1
+    while 1:
+        index = random.randrange(common.REGION_NUM)
+        # NOTE(wtakase): Currently 3-chars not supported
+        if index != 0 and index != 4 and index != 8:
+            break
     start = common.REGIONS_SLICE[index]["start"]
     end = common.REGIONS_SLICE[index]["end"]
     return common.REGIONS[start:end]

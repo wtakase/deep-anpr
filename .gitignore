@@ -7,4 +7,6 @@ __pycache__
 *.jpg
 *.log
 SUN397.tar.gz
-weights.npz
+*.npz
+*.csv
+sample_images

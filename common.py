@@ -24,16 +24,16 @@ Definitions that don't fit elsewhere.
 """
 
 __all__ = (
-    'DIGITS',
+    'NP_FONT',
     'REGIONS',
-    'HIRAGANAS'
+    'DIGITS',
     'HYPHEN',
     'DOT',
-    'CHARS',
-    'TRM_FONT',
-    'FZ_FONT',
+    'HIRAGANAS'
     'REGION_NUM'
     'REGIONS_SLICE',
+    'CHARS',
+    'CODE_LEN',
     'sigmoid',
     'softmax',
 )
@@ -41,18 +41,13 @@ __all__ = (
 import numpy
 
 
-# TrmFontJB.ttf
-TRM_FONT = "TrmFontJB.ttf"
-DIGITS = "0123456789"
-HYPHEN = "-"
-DOT = "."
-TRM_CHARS = DIGITS + HYPHEN + DOT
-
-# FZcarnumberJA-OTF_ver10.otf
-FZ_FONT = "FZcarnumberJA-OTF_ver10.otf"
+# number_plate_font.otf
+NP_FONT = "number_plate_font.otf"
 REGIONS = u"北九州金沢高知山口富士山徳島富山奈良ツクバ"
-HIRAGANAS = u"えさすそたちつてとなにぬねのはひふほまみむめもやゆよらりるれろわ"
-FZ_CHARS = REGIONS + HIRAGANAS
+DIGITS = "0123456789"
+HYPHEN = "^"
+DOT = "."
+HIRAGANAS = u"あいうえかきくけこさすそたちつてとなにぬねのはひふほまみむめもやゆよらりるれろわを"
 REGION_NUM = 9
 REGIONS_SLICE = [
     {"start": 0, "end": 3},
@@ -66,7 +61,10 @@ REGIONS_SLICE = [
     {"start": 18, "end": 21}
 ]
 
-CHARS = TRM_CHARS + FZ_CHARS
+# NOTE(wtakase): Currently we don't care about REGION
+CHARS = DIGITS + HIRAGANAS + DOT
+
+CODE_LEN = 8
 
 def softmax(a):
     exps = numpy.exp(a.astype(numpy.float64))

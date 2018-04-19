@@ -69,8 +69,8 @@ def code_to_vec(p, code):
 def read_data(img_glob):
     for fname in sorted(glob.glob(img_glob)):
         im = cv2.imread(fname)[:, :, 0].astype(numpy.float32) / 255.
-        code = fname.split("/")[1][9:20]
-        p = fname.split("/")[1][21] == '1'
+        code = fname.split("/")[1][9:9+common.CODE_LEN]
+        p = fname.split("/")[1][9+common.CODE_LEN+1] == '1'
         yield im, code_to_vec(p, code)
 
 
@@ -136,7 +136,7 @@ def get_loss(y, y_):
                                                      [-1, len(common.CHARS)]),
                                           labels=tf.reshape(y_[:, 1:],
                                                      [-1, len(common.CHARS)]))
-    digits_loss = tf.reshape(digits_loss, [-1, 11])
+    digits_loss = tf.reshape(digits_loss, [-1, common.CODE_LEN])
     digits_loss = tf.reduce_sum(digits_loss, 1)
     digits_loss *= (y_[:, 0] != 0)
     digits_loss = tf.reduce_sum(digits_loss)
@@ -144,7 +144,7 @@ def get_loss(y, y_):
     # Calculate the loss from presence indicator being wrong.
     presence_loss = tf.nn.sigmoid_cross_entropy_with_logits(
         logits=y[:, :1], labels=y_[:, :1])
-    presence_loss = 11 * tf.reduce_sum(presence_loss)
+    presence_loss = common.CODE_LEN * tf.reduce_sum(presence_loss)
 
     return digits_loss, presence_loss, digits_loss + presence_loss
 
@@ -169,19 +169,22 @@ def train(learn_rate, report_steps, batch_size, initial_weights=None, max_steps=
     :param initial_weights:
         (Optional.) Weights to initialize the network with.
 
+    :max_steps:
+        (Optional.) Max steps to train.
+
     :return:
         The learned network weights.
 
     """
     x, y, params = model.get_training_model()
 
-    y_ = tf.placeholder(tf.float32, [None, 11 * len(common.CHARS) + 1])
+    y_ = tf.placeholder(tf.float32, [None, common.CODE_LEN * len(common.CHARS) + 1])
 
     digits_loss, presence_loss, loss = get_loss(y, y_)
     train_step = tf.train.AdamOptimizer(learn_rate).minimize(loss)
 
-    best = tf.argmax(tf.reshape(y[:, 1:], [-1, 11, len(common.CHARS)]), 2)
-    correct = tf.argmax(tf.reshape(y_[:, 1:], [-1, 11, len(common.CHARS)]), 2)
+    best = tf.argmax(tf.reshape(y[:, 1:], [-1, common.CODE_LEN, len(common.CHARS)]), 2)
+    correct = tf.argmax(tf.reshape(y_[:, 1:], [-1, common.CODE_LEN, len(common.CHARS)]), 2)
 
     test_xs_all, test_ys_all = unzip(list(read_data("test/*.png")))
 
@@ -220,7 +223,7 @@ def train(learn_rate, report_steps, batch_size, initial_weights=None, max_steps=
         """
         num_p_correct = numpy.sum(r[2] == r[3])
 
-        print("step: {:d}, num_images: {:d}, number_plate_acc: {:2.02f}% presence_acc: {:02.02f}%, loss: {}, time: {:02.02f}".format(
+        print("step: {:d}, num_images: {:d}, number_plate_acc: {:2.02f}%, presence_acc: {:02.02f}%, loss: {}, time: {:02.02f}".format(
             batch_idx,
             batch_idx * batch_size,
             100. * num_correct / (len(r[0])),
@@ -243,25 +246,16 @@ def train(learn_rate, report_steps, batch_size, initial_weights=None, max_steps=
         if initial_weights is not None:
             sess.run(assign_ops)
 
-        #test_xs, test_ys = unzip(list(read_data("test/*.png"))[:batch_size])
         try:
             last_batch_idx = 0
             last_batch_time = time.time()
             batch_iter = enumerate(read_batches(batch_size))
             for batch_idx, (batch_xs, batch_ys) in batch_iter:
                 last_batch_time = do_batch(last_batch_time)
-                """
-                if batch_idx % report_steps == 0:
-                    batch_time = time.time()
-                    if last_batch_idx != batch_idx:
-                        print("time for {} batches: {}".format(
-                            report_steps,
-                            batch_time - last_batch_time))
-                        last_batch_idx = batch_idx
-                        last_batch_time = batch_time
-                """
+
                 if max_steps != 0 and batch_idx >= max_steps:
                     raise KeyboardInterrupt
+
         except KeyboardInterrupt:
             last_weights = [p.eval() for p in params]
             numpy.savez("weights.npz", *last_weights)
@@ -281,6 +275,6 @@ if __name__ == "__main__":
           report_steps=10,
           batch_size=100,
           initial_weights=initial_weights,
-          max_steps=20000)
+          max_steps=2000)
     end_time = time.time()
     print("Elapsed time: %.2f" % (end_time - start_time))

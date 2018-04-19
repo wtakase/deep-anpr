@@ -160,6 +160,7 @@ def make_affine_transform(from_shape, to_shape,
 
 
 def generate_region():
+    #index = random.randrange(common.REGION_NUM)
     index = 1
     while 1:
         index = random.randrange(common.REGION_NUM)
@@ -173,7 +174,7 @@ def generate_region():
 
 def generate_class_number():
     return "{}{}{}".format(
-        random.choice(common.DIGITS),
+        random.choice(common.DIGITS[1:]),
         random.choice(common.DIGITS),
         random.choice(common.DIGITS))
 
@@ -184,29 +185,28 @@ def generate_hiragana():
 
 
 def generate_number_code():
-    #digit_num = random.randrange(1, 20)
-    digit_num = random.randrange(4, 20)
+    digit_num = random.randrange(1, 20)
     if digit_num == 1:
         return "{}{} {}{}".format(
             random.choice(common.DOT),
             random.choice(common.DOT),
             random.choice(common.DOT),
-            random.choice(common.DIGITS))
+            random.choice(common.DIGITS[1:]))
     elif digit_num == 2:
         return "{}{} {}{}".format(
             random.choice(common.DOT),
             random.choice(common.DOT),
-            random.choice(common.DIGITS),
+            random.choice(common.DIGITS[1:]),
             random.choice(common.DIGITS))
     elif digit_num == 3:
         return "{}{} {}{}".format(
             random.choice(common.DOT),
-            random.choice(common.DIGITS),
+            random.choice(common.DIGITS[1:]),
             random.choice(common.DIGITS),
             random.choice(common.DIGITS))
     else:
         return "{}{}{}{}{}".format(
-            random.choice(common.DIGITS),
+            random.choice(common.DIGITS[1:]),
             random.choice(common.DIGITS),
             random.choice(common.HYPHEN),
             random.choice(common.DIGITS),
@@ -241,7 +241,8 @@ def generate_plate(font_height, char_ims, plate_height, plate_width):
     hiragana = generate_hiragana()
     number_code = generate_number_code()
 
-    code = region + class_number + hiragana + number_code
+    # NOTE(wtakase): Currently we don't care about REGION
+    code = class_number + hiragana + number_code
 
     out_shape = (int(135 + v_padding * 2),
                  int(315 + h_padding * 2))
@@ -253,25 +254,25 @@ def generate_plate(font_height, char_ims, plate_height, plate_width):
     x = 85 * random.uniform(0.95, 1.05)
     y = v_padding
     for r in region:
-        char_im = char_ims["region,%s" % common.FZ_FONT][r]
+        char_im = char_ims["region,%s" % common.NP_FONT][r]
         ix, iy = int(x), int(y)
         text_mask[iy:iy + char_im.shape[0], ix:ix + char_im.shape[1]] = char_im
         x += char_im.shape[1] + region_spacing
     for c in class_number:
-        char_im = char_ims["class_number,%s" % common.TRM_FONT][c]
+        char_im = char_ims["class_number,%s" % common.NP_FONT][c]
         ix, iy = int(x), int(y)
         text_mask[iy:iy + char_im.shape[0], ix:ix + char_im.shape[1]] = char_im
         x += char_im.shape[1] + class_number_spacing
     x = h_padding
     y += 75
     for h in hiragana:
-        char_im = char_ims["hiragana,%s" % common.FZ_FONT][h]
+        char_im = char_ims["hiragana,%s" % common.NP_FONT][h]
         ix, iy = int(x), int(y)
         text_mask[iy:iy + char_im.shape[0], ix:ix + char_im.shape[1]] = char_im
         x += char_im.shape[1] + lower_spacing
     y -= 20
     for n in number_code:
-        char_im = char_ims["number_code,%s" % common.TRM_FONT][n]
+        char_im = char_ims["number_code,%s" % common.NP_FONT][n]
         ix, iy = int(x), int(y)
         text_mask[iy:iy + char_im.shape[0], ix:ix + char_im.shape[1]] = char_im
         x += char_im.shape[1] + lower_spacing
@@ -279,7 +280,7 @@ def generate_plate(font_height, char_ims, plate_height, plate_width):
     plate = (numpy.ones(out_shape) * plate_color * (1. - text_mask) +
              numpy.ones(out_shape) * text_color * text_mask)
 
-    return plate, rounded_rect(out_shape, radius), code
+    return plate, rounded_rect(out_shape, radius), code.replace(" ", "").replace(common.HYPHEN, "")
 
 
 def generate_bg(num_bg_images):
@@ -319,7 +320,9 @@ def generate_im(char_ims, num_bg_images):
 
     out = cv2.resize(out, (OUTPUT_SHAPE[1], OUTPUT_SHAPE[0]))
 
-    out += numpy.random.normal(scale=0.05, size=out.shape)
+    #out += numpy.random.normal(scale=0.05, size=out.shape)
+    # NOTE(wtakase): Add more noise
+    out += numpy.random.normal(scale=0.15, size=out.shape)
     out = numpy.clip(out, 0., 1.)
 
     return out, code, not out_of_bounds
@@ -327,28 +330,27 @@ def generate_im(char_ims, num_bg_images):
 
 def load_fonts(folder_path):
     font_char_ims = {}
-    fonts = [common.TRM_FONT, common.FZ_FONT]
-    font_char_ims["region,%s" % common.FZ_FONT] = dict(
+    font_char_ims["region,%s" % common.NP_FONT] = dict(
         make_char_ims(os.path.join(folder_path,
-                                   common.FZ_FONT),
+                                   common.NP_FONT),
                       common.REGIONS,
                       SMALL_FONT_HEIGHT))
-    font_char_ims["class_number,%s" % common.TRM_FONT] = dict(
+    font_char_ims["class_number,%s" % common.NP_FONT] = dict(
         make_char_ims(os.path.join(folder_path,
-                                   common.TRM_FONT),
+                                   common.NP_FONT),
                       common.DIGITS,
                       SMALL_FONT_HEIGHT))
-    font_char_ims["hiragana,%s" % common.FZ_FONT] = dict(
+    font_char_ims["hiragana,%s" % common.NP_FONT] = dict(
         make_char_ims(os.path.join(folder_path,
-                                   common.FZ_FONT),
+                                   common.NP_FONT),
                       common.HIRAGANAS,
                       SMALL_FONT_HEIGHT))
-    font_char_ims["number_code,%s" % common.TRM_FONT] = dict(
+    font_char_ims["number_code,%s" % common.NP_FONT] = dict(
         make_char_ims(os.path.join(folder_path,
-                                   common.TRM_FONT),
-                      common.TRM_CHARS,
+                                   common.NP_FONT),
+                      common.DIGITS+common.HYPHEN+common.DOT,
                       FONT_HEIGHT))
-    return fonts, font_char_ims
+    return font_char_ims
 
 
 def generate_ims():
@@ -360,7 +362,7 @@ def generate_ims():
 
     """
     variation = 1.0
-    fonts, font_char_ims = load_fonts(FONT_DIR)
+    font_char_ims = load_fonts(FONT_DIR)
     num_bg_images = len(os.listdir("bgs"))
     while True:
         yield generate_im(font_char_ims, num_bg_images)

@@ -12,7 +12,7 @@ def main():
         records = []
         for line in in_f:
             record = {}
-            items = line.strip().split(",")
+            items = line.strip().split(",")[:-1]
             for item in items:
                 key = item.split(":")[0].strip()
                 value = item.split(":")[1].strip().replace("%", "")

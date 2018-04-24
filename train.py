@@ -58,7 +58,7 @@ os.environ['CUDA_VISIBLE_DEVICES'] = '2'
 def code_to_vec(p, code):
     def char_to_vec(c):
         y = numpy.zeros((len(common.CHARS),))
-        y[common.CHARS.index(c)] = 1.0
+        y[common.CHARS.index(c.replace("-", "^").replace("_", " "))] = 1.0
         return y
 
     c = numpy.vstack([char_to_vec(c) for c in code])
@@ -215,21 +215,24 @@ def train(learn_rate, report_steps, batch_size, initial_weights=None, max_steps=
                             numpy.all(r[0] == r[1], axis=1),
                             numpy.logical_and(r[2] < 0.5,
                                               r[3] < 0.5)))
-        """
         r_short = (r[0][:190], r[1][:190], r[2][:190], r[3][:190])
+        sample_out = ""
         for b, c, pb, pc in zip(*r_short):
-            print("{} {} <-> {} {}".format(vec_to_plate(c), pc,
-                                           vec_to_plate(b), float(pb)))
-        """
+            #print("{} {} <-> {} {}".format(vec_to_plate(c), pc,
+            #                               vec_to_plate(b), float(pb)))
+            sample_out = "{} {} <-> {} {}".format(vec_to_plate(c).replace(" ", "_").replace("^", "-"), pc,
+                                                  vec_to_plate(b).replace(" ", "_").replace("^", "-"), float(pb))
+            break
         num_p_correct = numpy.sum(r[2] == r[3])
 
-        print("step: {:d}, num_images: {:d}, number_plate_acc: {:2.02f}%, presence_acc: {:02.02f}%, loss: {}, time: {:02.02f}".format(
+        print("step: {:d}, num_images: {:d}, number_plate_acc: {:2.02f}%, presence_acc: {:02.02f}%, loss: {}, time: {:02.02f}, {}".format(
             batch_idx,
             batch_idx * batch_size,
             100. * num_correct / (len(r[0])),
             100. * num_p_correct / len(r[2]),
             r[6],
-            batch_time))
+            batch_time,
+            sample_out))
 
     def do_batch(last_time_batch):
         sess.run(train_step,
@@ -271,10 +274,17 @@ if __name__ == "__main__":
         initial_weights = None
 
     start_time = time.time()
+    """
     train(learn_rate=0.001,
-          report_steps=10,
+          report_steps=500,
           batch_size=100,
           initial_weights=initial_weights,
-          max_steps=2000)
+          max_steps=500000)
+    """
+    train(learn_rate=0.001,
+          report_steps=500,
+          batch_size=100,
+          initial_weights=initial_weights,
+          max_steps=200000)
     end_time = time.time()
     print("Elapsed time: %.2f" % (end_time - start_time))

@@ -47,6 +47,7 @@ REGIONS = u"北九州金沢高知山口富士山徳島富山奈良ツクバ"
 DIGITS = "0123456789"
 HYPHEN = "^"
 DOT = "."
+SPACE = " "
 HIRAGANAS = u"あいうえかきくけこさすそたちつてとなにぬねのはひふほまみむめもやゆよらりるれろわを"
 REGION_NUM = 9
 REGIONS_SLICE = [
@@ -62,9 +63,11 @@ REGIONS_SLICE = [
 ]
 
 # NOTE(wtakase): Currently we don't care about REGION
-CHARS = DIGITS + HIRAGANAS + DOT
+#CHARS = DIGITS + HIRAGANAS + DOT
+CHARS = DIGITS + HIRAGANAS + DOT + HYPHEN + SPACE + REGIONS
 
-CODE_LEN = 8
+#CODE_LEN = 8
+CODE_LEN = 11
 
 def softmax(a):
     exps = numpy.exp(a.astype(numpy.float64))
@@ -72,4 +75,3 @@ def softmax(a):
 
 def sigmoid(a):
   return 1. / (1. + numpy.exp(-a))
-

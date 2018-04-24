@@ -242,7 +242,8 @@ def generate_plate(font_height, char_ims, plate_height, plate_width):
     number_code = generate_number_code()
 
     # NOTE(wtakase): Currently we don't care about REGION
-    code = class_number + hiragana + number_code
+    #code = class_number + hiragana + number_code
+    code = region + class_number + hiragana + number_code
 
     out_shape = (int(135 + v_padding * 2),
                  int(315 + h_padding * 2))
@@ -280,7 +281,7 @@ def generate_plate(font_height, char_ims, plate_height, plate_width):
     plate = (numpy.ones(out_shape) * plate_color * (1. - text_mask) +
              numpy.ones(out_shape) * text_color * text_mask)
 
-    return plate, rounded_rect(out_shape, radius), code.replace(" ", "").replace(common.HYPHEN, "")
+    return plate, rounded_rect(out_shape, radius), code.replace(" ", "_").replace(common.HYPHEN, "-")
 
 
 def generate_bg(num_bg_images):
@@ -320,9 +321,9 @@ def generate_im(char_ims, num_bg_images):
 
     out = cv2.resize(out, (OUTPUT_SHAPE[1], OUTPUT_SHAPE[0]))
 
-    #out += numpy.random.normal(scale=0.05, size=out.shape)
+    out += numpy.random.normal(scale=0.05, size=out.shape)
     # NOTE(wtakase): Add more noise
-    out += numpy.random.normal(scale=0.15, size=out.shape)
+    #out += numpy.random.normal(scale=0.15, size=out.shape)
     out = numpy.clip(out, 0., 1.)
 
     return out, code, not out_of_bounds

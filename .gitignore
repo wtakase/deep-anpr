@@ -5,6 +5,8 @@ __pycache__
 *.ttf
 *.png
 *.jpg
+*.jpeg
+*.JPG
 *.log
 SUN397.tar.gz
 *.npz

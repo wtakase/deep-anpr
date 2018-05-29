@@ -29,9 +29,10 @@ __all__ = (
     'DIGITS',
     'HYPHEN',
     'DOT',
-    'HIRAGANAS'
-    'REGION_NUM'
-    'REGIONS_SLICE',
+    'HIRAGANAS',
+    'REGION_NUM',
+    'REGION_LIST',
+    'REGION_MAP',
     'CHARS',
     'CODE_LEN',
     'sigmoid',
@@ -43,31 +44,51 @@ import numpy
 
 # number_plate_font.otf
 NP_FONT = "number_plate_font.otf"
-REGIONS = u"北九州金沢高知山口富士山徳島富山奈良ツクバ"
 DIGITS = "0123456789"
 HYPHEN = "^"
 DOT = "."
 SPACE = " "
 HIRAGANAS = u"あいうえかきくけこさすそたちつてとなにぬねのはひふほまみむめもやゆよらりるれろわを"
-REGION_NUM = 9
-REGIONS_SLICE = [
-    {"start": 0, "end": 3},
-    {"start": 3, "end": 5},
-    {"start": 5, "end": 7},
-    {"start": 7, "end": 9},
-    {"start": 9, "end": 12},
-    {"start": 12, "end": 14},
-    {"start": 14, "end": 16},
-    {"start": 16, "end": 18},
-    {"start": 18, "end": 21}
+
+REGION_NUM = 118
+REGIONS = ""
+for i in range(REGION_NUM):
+    REGIONS += chr(ord(u"\u00c0") + i)
+
+REGION_LIST = [
+"adachi",     "ibaraki",     "kurashiki",  "noda",         "shonan",
+"aizu",       "ishikawa",    "kurume",     "numazu",       "sodegaura",
+"akita",      "itinomiya",   "kushiro",    "obihiro",      "suginami",
+"amami",      "iwaki",       "kyoto",      "oita",         "suwa",
+"aomori",     "iwate",       "maebashi",   "okayama",      "suzuka",
+"asahikawa",  "izumi",       "matsumoto",  "okazaki",      "takasaki",
+"chiba",      "izu",         "mie",        "okinawa",      "tama",
+"chikuho",    "kagawa",      "mikawa",     "oomiya",       "tochigi_hiragana",
+"ehime",      "kagoshima",   "mito",       "osaka",        "tokorozawa",
+"fujisan",    "kanazawa",    "miyagi",     "owarikomaki",  "tokushima",
+"fukui",      "kashiwa",     "miyazaki",   "sagami",       "tottori",
+"fukuoka",    "kasugai",     "morioka",    "saga",         "toyama",
+"fukushima",  "kasukabe",    "muroran",    "saitama",      "toyohashi",
+"fukuyama",   "kawagoe",     "nagano",     "sakai",        "toyota",
+"gifu",       "kawaguchi",   "nagaoka",    "sapporo",      "tsuchiura",
+"gunma",      "kawasaki",    "nagasaki",   "sasebo",       "tsukuba",
+"hachinohe",  "kitakyushu",  "nagoya",     "sendai",       "utsunomiya",
+"hachioji",   "kitami",      "naniwa",     "setagaya",     "wakayama",
+"hakodate",   "kobe",        "nara",       "shiga",        "yamagata",
+"hamamatsu",  "kochi",       "narashino",  "shimane",      "yamaguchi",
+"hida",       "kooriyama",   "narita",     "shimonoseki",  "yamanashi",
+"himeji",     "koshigaya",   "nasu",       "shinagawa",    "yokohama",
+"hiraizumi",  "kumagaya",    "nerima",     "shizuoka",
+"hiroshima",  "kumamoto",    "niigata",    "shonai"
 ]
 
-# NOTE(wtakase): Currently we don't care about REGION
-#CHARS = DIGITS + HIRAGANAS + DOT
+REGION_MAP = {}
+for i in range(REGION_NUM):
+    REGION_MAP[REGIONS[i]] = REGION_LIST[i]
+
 CHARS = DIGITS + HIRAGANAS + DOT + HYPHEN + SPACE + REGIONS
 
-#CODE_LEN = 8
-CODE_LEN = 11
+CODE_LEN = 10
 
 def softmax(a):
     exps = numpy.exp(a.astype(numpy.float64))

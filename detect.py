@@ -182,8 +182,13 @@ def post_process(matches):
 
 
 def letter_probs_to_code(letter_probs):
-    print("".join(common.CHARS[i] for i in numpy.argmax(letter_probs, axis=1)).replace("^", "-"))
-    return "".join(common.CHARS[i] for i in numpy.argmax(letter_probs, axis=1)).replace("^", "-")
+    code = "".join(common.CHARS[i] for i in numpy.argmax(letter_probs, axis=1)).replace("^", "-")
+    try:
+        code = common.REGION_MAP[code[0]] + "_" + code[1:]
+    except:
+        pass
+    print(code)
+    return code
 
 
 if __name__ == "__main__":

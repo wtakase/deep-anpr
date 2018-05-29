@@ -160,16 +160,18 @@ def make_affine_transform(from_shape, to_shape,
 
 
 def generate_region():
-    #index = random.randrange(common.REGION_NUM)
-    index = 1
-    while 1:
-        index = random.randrange(common.REGION_NUM)
-        # NOTE(wtakase): Currently 3-chars not supported
-        if index != 0 and index != 4 and index != 8:
-            break
-    start = common.REGIONS_SLICE[index]["start"]
-    end = common.REGIONS_SLICE[index]["end"]
-    return common.REGIONS[start:end]
+    index = random.randrange(common.REGION_NUM)
+    region_code = common.REGIONS[index]
+    region_image = cv2.imread("regions/%s.png" % common.REGION_LIST[index],
+                              cv2.IMREAD_GRAYSCALE)
+    _, region_image = cv2.threshold(region_image, 120, 255, cv2.THRESH_BINARY)
+    region_image = cv2.bitwise_not(region_image)
+    height, width = region_image.shape
+    scale = 110 / width
+    height = round(height * scale)
+    width = round(width * scale)
+    region_image = cv2.resize(region_image, (width, height)) / 255.
+    return region_code, region_image
 
 
 def generate_class_number():
@@ -236,14 +238,12 @@ def generate_plate(font_height, char_ims, plate_height, plate_width):
     lower_spacing = 9 * random.uniform(0.95, 1.05)
     radius = 1 + int(font_height * 0.1 * random.random())
 
-    region = generate_region()
+    region_code, region_image = generate_region()
     class_number = generate_class_number()
     hiragana = generate_hiragana()
     number_code = generate_number_code()
 
-    # NOTE(wtakase): Currently we don't care about REGION
-    #code = class_number + hiragana + number_code
-    code = region + class_number + hiragana + number_code
+    code = region_code + class_number + hiragana + number_code
 
     out_shape = (int(135 + v_padding * 2),
                  int(315 + h_padding * 2))
@@ -252,13 +252,15 @@ def generate_plate(font_height, char_ims, plate_height, plate_width):
     
     text_mask = numpy.zeros(out_shape)
     
-    x = 85 * random.uniform(0.95, 1.05)
+
+    region_image_h, region_image_w = region_image.shape
+    region_image_x = 58
+    region_image_y = int(v_padding) - 5
+    text_mask[region_image_y:region_image_y+region_image_h,
+              region_image_x:region_image_x+region_image_w] = region_image
+
+    x = 85 * random.uniform(0.95, 1.05) + 40 + 40 + region_spacing
     y = v_padding
-    for r in region:
-        char_im = char_ims["region,%s" % common.NP_FONT][r]
-        ix, iy = int(x), int(y)
-        text_mask[iy:iy + char_im.shape[0], ix:ix + char_im.shape[1]] = char_im
-        x += char_im.shape[1] + region_spacing
     for c in class_number:
         char_im = char_ims["class_number,%s" % common.NP_FONT][c]
         ix, iy = int(x), int(y)
@@ -331,11 +333,6 @@ def generate_im(char_ims, num_bg_images):
 
 def load_fonts(folder_path):
     font_char_ims = {}
-    font_char_ims["region,%s" % common.NP_FONT] = dict(
-        make_char_ims(os.path.join(folder_path,
-                                   common.NP_FONT),
-                      common.REGIONS,
-                      SMALL_FONT_HEIGHT))
     font_char_ims["class_number,%s" % common.NP_FONT] = dict(
         make_char_ims(os.path.join(folder_path,
                                    common.NP_FONT),

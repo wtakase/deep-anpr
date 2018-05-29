@@ -33,6 +33,7 @@ __all__ = (
 )
 
 
+import argparse
 import functools
 import glob
 import itertools
@@ -149,7 +150,7 @@ def get_loss(y, y_):
     return digits_loss, presence_loss, digits_loss + presence_loss
 
 
-def train(learn_rate, report_steps, batch_size, initial_weights=None, max_steps=0):
+def train(learn_rate, report_steps, batch_size, initial_weights=None, max_steps=0, dropout_ratio=0, output_file="weights.npz"):
     """
     Train the network.
 
@@ -169,14 +170,18 @@ def train(learn_rate, report_steps, batch_size, initial_weights=None, max_steps=
     :param initial_weights:
         (Optional.) Weights to initialize the network with.
 
-    :max_steps:
+    :param max_steps:
         (Optional.) Max steps to train.
+
+    :param dropout_ratio:
+        (Optional.) Dropout ratio.
 
     :return:
         The learned network weights.
 
     """
-    x, y, params = model.get_training_model()
+    keep_prob = tf.placeholder(tf.float32)
+    x, y, params = model.get_training_model(keep_prob=keep_prob)
 
     y_ = tf.placeholder(tf.float32, [None, common.CODE_LEN * len(common.CHARS) + 1])
 
@@ -209,7 +214,7 @@ def train(learn_rate, report_steps, batch_size, initial_weights=None, max_steps=
                       digits_loss,
                       presence_loss,
                       loss],
-                     feed_dict={x: test_xs, y_: test_ys})
+                     feed_dict={x: test_xs, y_: test_ys, keep_prob: (1 - dropout_ratio)})
         num_correct = numpy.sum(
                         numpy.logical_or(
                             numpy.all(r[0] == r[1], axis=1),
@@ -236,7 +241,7 @@ def train(learn_rate, report_steps, batch_size, initial_weights=None, max_steps=
 
     def do_batch(last_time_batch):
         sess.run(train_step,
-                 feed_dict={x: batch_xs, y_: batch_ys})
+                 feed_dict={x: batch_xs, y_: batch_ys, keep_prob: (1 - dropout_ratio)})
         if batch_idx != 0 and batch_idx % report_steps == 0:
             batch_time = time.time() - last_time_batch
             do_report(batch_time)
@@ -261,30 +266,60 @@ def train(learn_rate, report_steps, batch_size, initial_weights=None, max_steps=
 
         except KeyboardInterrupt:
             last_weights = [p.eval() for p in params]
-            numpy.savez("weights.npz", *last_weights)
+            numpy.savez(output_file, *last_weights)
             return last_weights
 
 
 if __name__ == "__main__":
-    if len(sys.argv) > 1:
-        f = numpy.load(sys.argv[1])
+
+    argparser = argparse.ArgumentParser(description="Training script")
+    argparser.add_argument("-i", "--input-file", default=None)
+    argparser.add_argument("-o", "--output-file", default="weights.npz")
+    argparser.add_argument("-b", "--batch-size", default=100, type=int, help="[100]")
+    argparser.add_argument("-r", "--report-steps", default=10, type=int, help="[10]")
+    argparser.add_argument("-m", "--max-steps", default=100, type=int, help="[100]")
+    argparser.add_argument("-l", "--learn-rate", default=0.001, type=float, help="[0.001]")
+    argparser.add_argument("-d", "--dropout-ratio", default=0.0, type=float, help="[0.0]")
+    args = argparser.parse_args()
+
+    if args.input_file:
+        f = numpy.load(args.input_file)
         initial_weights = [f[n] for n in sorted(f.files,
                                                 key=lambda s: int(s[4:]))]
     else:
         initial_weights = None
 
+    print("#####")
+    print("input_file: %s" % args.input_file)
+    print("output_file: %s" % args.output_file)
+    print("batch_size: %s" % args.batch_size)
+    print("report_steps: %s" % args.report_steps)
+    print("max_steps: %s" % args.max_steps)
+    print("learn_rate: %s" % args.learn_rate)
+    print("dropout_ratio: %s (keep_prob: %s)" % (args.dropout_ratio, 1 - args.dropout_ratio))
+    print("#####")
+
     start_time = time.time()
     """
     train(learn_rate=0.001,
-          report_steps=500,
+          report_steps=10,
           batch_size=100,
           initial_weights=initial_weights,
-          max_steps=500000)
+          max_steps=5000)
+    """
     """
     train(learn_rate=0.001,
           report_steps=500,
           batch_size=100,
           initial_weights=initial_weights,
           max_steps=200000)
+    """
+    train(learn_rate=args.learn_rate,
+          report_steps=args.report_steps,
+          batch_size=args.batch_size,
+          initial_weights=initial_weights,
+          max_steps=args.max_steps,
+          dropout_ratio=args.dropout_ratio,
+          output_file=args.output_file)
     end_time = time.time()
     print("Elapsed time: %.2f" % (end_time - start_time))

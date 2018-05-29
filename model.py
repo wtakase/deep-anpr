@@ -100,7 +100,7 @@ def convolutional_layers():
                         W_conv3, b_conv3]
 
 
-def get_training_model():
+def get_training_model(keep_prob=None):
     """
     The training model acts on a batch of 128x64 windows, and outputs a (1 +
     common.CODE_LEN * len(common.CHARS) vector, `v`. `v[0]` is the
@@ -118,12 +118,16 @@ def get_training_model():
 
     conv_layer_flat = tf.reshape(conv_layer, [-1, 32 * 8 * 128])
     h_fc1 = tf.nn.relu(tf.matmul(conv_layer_flat, W_fc1) + b_fc1)
+    if keep_prob is not None:
+        h_fc1 = tf.nn.dropout(h_fc1, keep_prob)
 
     # Output layer
     W_fc2 = weight_variable([2048, 1 + common.CODE_LEN * len(common.CHARS)])
     b_fc2 = bias_variable([1 + common.CODE_LEN * len(common.CHARS)])
 
     y = tf.matmul(h_fc1, W_fc2) + b_fc2
+    if keep_prob is not None:
+        y = tf.nn.dropout(y, keep_prob)
 
     return (x, y, conv_vars + [W_fc1, b_fc1, W_fc2, b_fc2])
 
